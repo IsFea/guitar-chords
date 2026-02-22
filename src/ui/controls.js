@@ -84,18 +84,20 @@ export function renderControls(container, state, derived, onAction) {
         <label for="scaleId">Лад / гамма</label>
         <select id="scaleId" name="scaleId">${scaleOptions}</select>
       </div>
-      <div class="field-row">
+      <div class="field-row inline-2">
         <button type="button" data-action="play-scale-preview" ${canPlayScalePreview ? "" : "disabled"}>▶ Гамма</button>
+        <button type="button" data-action="play-scale-preview-bounce" ${canPlayScalePreview ? "" : "disabled"}>⇅ Гамма</button>
       </div>
       <div class="helper-text">
         ${
           audioUnsupported
             ? "Аудио-preview недоступен: браузер не поддерживает Web Audio API."
             : (canPlayScalePreview
-              ? "Синтетический preview выбранной гаммы (по возрастанию)."
+              ? "▶ Гамма — вверх, ⇅ Гамма — вверх-вниз."
               : "Нет данных для воспроизведения гаммы в текущем отображении.")
         }
       </div>
+      ${derived.audioPreviewSummary ? `<div class="helper-text">Играется: ${derived.audioPreviewSummary}</div>` : ""}
     </div>
 
     <div class="field-group" data-section="chord" ${state.harmonyMode !== "chord" ? "hidden" : ""}>
@@ -220,12 +222,15 @@ export function renderControls(container, state, derived, onAction) {
 }
 
 export function renderLegend(container, legendEntries) {
-  container.innerHTML = legendEntries.map((entry) => `
-    <span class="legend-chip">
+  container.innerHTML = `
+    <span class="legend-caption" title="Цвета ступеней на грифе">Цвета ступеней:</span>
+    ${legendEntries.map((entry) => `
+    <span class="legend-chip" title="Ступень ${entry.degree}">
       <span class="legend-swatch" style="background:${entry.colorVar}"></span>
       <span>${entry.degree}</span>
     </span>
-  `).join("");
+  `).join("")}
+  `;
 }
 
 export function renderDetails(container, data) {

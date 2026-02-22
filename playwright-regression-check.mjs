@@ -22,16 +22,30 @@ try {
   await page.waitForSelector("#fretboard-svg");
   await page.waitForSelector("#controls-form");
   await page.waitForSelector('button[data-action="play-scale-preview"]');
+  await page.waitForSelector('button[data-action="play-scale-preview-bounce"]');
 
   const initialSummary = await page.locator("#selection-summary").innerText();
   assert(initialSummary.includes("Строй: E A D G B E"), "Initial tuning summary mismatch");
+  const legendCaption = await page.locator("#legend-inline .legend-caption").innerText();
+  assert(/Цвета ступеней/i.test(legendCaption), "Legend caption missing");
   const scaleButtonEnabled = await page.evaluate(() => {
     const btn = document.querySelector('button[data-action="play-scale-preview"]');
+    return Boolean(btn && !btn.disabled);
+  });
+  const scaleBounceButtonEnabled = await page.evaluate(() => {
+    const btn = document.querySelector('button[data-action="play-scale-preview-bounce"]');
     return Boolean(btn && !btn.disabled);
   });
   if (scaleButtonEnabled) {
     await page.click('button[data-action="play-scale-preview"]');
   }
+  if (scaleBounceButtonEnabled) {
+    await page.click('button[data-action="play-scale-preview-bounce"]');
+  }
+  await page.selectOption("#scaleId", "dorian");
+  await page.waitForTimeout(150);
+  const scalePreviewText = await page.locator('[data-section="scale"] .helper-text').nth(1).innerText();
+  assert(/Дорийский/i.test(scalePreviewText), "Scale preview helper text did not update for selected scale");
 
   await page.selectOption("#selectedPresetTuningId", "drop-d");
   await page.waitForTimeout(200);
@@ -59,6 +73,15 @@ try {
   }
   await page.selectOption("#chordId", "dim");
   await page.waitForTimeout(250);
+  const disabledVisual = await page.evaluate(() => {
+    const el = document.querySelector("#chordVoicingVariant");
+    if (!el || !el.disabled) return null;
+    const style = getComputedStyle(el);
+    return {
+      opacity: Number(style.opacity),
+      cursor: style.cursor,
+    };
+  });
   const dimEmptyVisible = await page.locator("#empty-state").isVisible();
   const dimNoteDots = await page.locator("#fretboard-svg circle").count();
   assert(dimEmptyVisible, "Empty state should be visible for chord with no predefined voicing");
@@ -75,8 +98,16 @@ try {
       text: el.textContent,
     }));
   });
+  const coloredDots = await page.evaluate(() => {
+    const circles = [...document.querySelectorAll("#fretboard-svg circle")];
+    return circles.filter((el) => (el.getAttribute("fill") || "").startsWith("var(--deg-")).length;
+  });
   assert(labelAttrs.length > 0, "No note labels found on fretboard");
   assert(labelAttrs.every((a) => a.fill && a.stroke), "Note labels are missing contrast attributes");
+  assert(coloredDots > 0, "No colored note dots found (legend colors not applied)");
+  if (disabledVisual) {
+    assert(disabledVisual.opacity < 1, "Disabled select should look visually dimmed");
+  }
   assert(pageErrors.length === 0, `Page errors after audio clicks: ${pageErrors.join(" | ")}`);
 
   console.log("REGRESSION_OK");
@@ -85,8 +116,11 @@ try {
     detailsAfterShape: detailsAfterShape.replace(/\s+/g, " ").slice(0, 160),
     dimEmptyVisible,
     dimNoteDots,
+    disabledVisual,
+    coloredDots,
     labelAttrs,
     scaleButtonEnabled,
+    scaleBounceButtonEnabled,
     audioButtonsEnabled,
   }, null, 2));
 } catch (error) {

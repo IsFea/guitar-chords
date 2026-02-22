@@ -3,7 +3,7 @@ export function colorTokenForInterval(interval) {
 }
 
 export function cssColorForInterval(interval) {
-  return `var(${colorTokenForInterval(interval)})`;
+  return `var(--${colorTokenForInterval(interval)})`;
 }
 
 export function buildLegendEntries(intervals, degreeByInterval) {

@@ -8,7 +8,7 @@ import { getTuningPresetById } from "./music/tunings.js";
 import {
   buildAudioNotesFromFallback,
   buildAudioNotesFromVoicing,
-  buildAudioScaleNotes,
+  buildAudioScaleNotesFromIntervals,
   isAudioPreviewSupported,
   playChordPreview,
   playScalePreview,
@@ -192,12 +192,7 @@ function buildDerived(state) {
   }));
 
   if (state.harmonyMode === "scale") {
-    scaleAudioNotes = buildAudioScaleNotes(withWindowFlag, state.tuning, {
-      inWindowOnly: Boolean(activePositionWindow),
-    });
-    if (!scaleAudioNotes.length) {
-      scaleAudioNotes = buildAudioScaleNotes(withWindowFlag, state.tuning, { inWindowOnly: false });
-    }
+    scaleAudioNotes = buildAudioScaleNotesFromIntervals(state.rootNote, selection.intervals);
   }
 
   if (state.harmonyMode === "chord") {
@@ -230,6 +225,9 @@ function buildDerived(state) {
     canPlayChordPreview: state.harmonyMode === "chord" && chordAudioNotes.length > 0 && isAudioPreviewSupported(),
     canPlayScalePreview: state.harmonyMode === "scale" && scaleAudioNotes.length > 0 && isAudioPreviewSupported(),
     audioPreviewSupported: isAudioPreviewSupported(),
+    audioPreviewSummary: state.harmonyMode === "scale"
+      ? `${state.rootNote} ${selectionDef.label} (1 октава вверх)`
+      : null,
   };
 }
 
@@ -288,6 +286,7 @@ function renderApp() {
     canPlayChordPreview: derived.canPlayChordPreview,
     canPlayScalePreview: derived.canPlayScalePreview,
     audioPreviewSupported: derived.audioPreviewSupported,
+    audioPreviewSummary: derived.audioPreviewSummary,
   }, handleControlAction);
 
   dom.selectionSummary.textContent = getSummaryText(state, derived);
@@ -403,6 +402,16 @@ function handleControlAction(action) {
     const derived = buildDerived(nextState);
     if (!derived.canPlayScalePreview) return;
     playScalePreview(derived.scaleAudioNotes).catch(() => {
+      // Keep UI silent on audio errors; browser support varies.
+    });
+    return;
+  }
+
+  if (action.type === "play-scale-preview-bounce") {
+    const nextState = store.getState();
+    const derived = buildDerived(nextState);
+    if (!derived.canPlayScalePreview) return;
+    playScalePreview(derived.scaleAudioNotes, { bounce: true }).catch(() => {
       // Keep UI silent on audio errors; browser support varies.
     });
     return;

@@ -162,6 +162,38 @@ export function buildAudioScaleNotes(fretNotes, tuning6to1, { inWindowOnly = fal
   return deduped;
 }
 
+function nearestMidiForPitchClassInRange(pc, { min = 48, max = 60, target = 55 } = {}) {
+  let best = null;
+  for (let midi = min; midi <= max; midi += 1) {
+    if (((midi % 12) + 12) % 12 !== pc) continue;
+    const score = Math.abs(midi - target);
+    if (!best || score < best.score) best = { midi, score };
+  }
+  return best?.midi ?? target;
+}
+
+export function buildAudioScaleNotesFromIntervals(rootNote, intervals) {
+  const rootPc = noteToPitchClass(rootNote);
+  if (rootPc == null || !Array.isArray(intervals) || intervals.length === 0) return [];
+
+  const baseMidi = nearestMidiForPitchClassInRange(rootPc, { min: 48, max: 60, target: 55 });
+  const uniqueIntervals = [...new Set(intervals.map((n) => ((n % 12) + 12) % 12))].sort((a, b) => a - b);
+  const ascending = uniqueIntervals.includes(0)
+    ? uniqueIntervals
+    : [0, ...uniqueIntervals];
+
+  const sequenceIntervals = [...ascending, 12];
+  return sequenceIntervals.map((interval) => {
+    const midi = baseMidi + interval;
+    return {
+      stringNumber: 0,
+      fret: null,
+      midi,
+      frequency: midiToFrequency(midi),
+    };
+  });
+}
+
 function scheduleVoice(ctx, note, startAt, durationSec, voiceGain) {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
