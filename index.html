@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guitar Fretboard Explorer</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="controls-panel">
+      <h1 class="app-title">Гриф гитары</h1>
+      <form id="controls-form" class="controls-form" autocomplete="off"></form>
+    </aside>
+    <main class="main-panel">
+      <section class="fretboard-card">
+        <div class="card-header">
+          <div>
+            <h2 class="section-title">Гриф</h2>
+            <p id="selection-summary" class="muted-text"></p>
+          </div>
+          <div class="legend-inline" id="legend-inline"></div>
+        </div>
+        <div class="fretboard-scroll">
+          <svg id="fretboard-svg" class="fretboard-svg" aria-label="Гриф гитары"></svg>
+        </div>
+        <div id="empty-state" class="empty-state" hidden></div>
+      </section>
+      <section class="info-card">
+        <h2 class="section-title">Подробности</h2>
+        <div id="details-panel" class="details-panel"></div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
