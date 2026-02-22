@@ -7,6 +7,10 @@
 - режим аккордов (готовые аппликатуры/voicings),
 - сохранение настроек в `localStorage`.
 
+## Демо
+
+![Demo: chord mode screenshot](docs/demo-chord-page.png)
+
 ## Быстрый старт
 
 1. Запустить локальный сервер:
@@ -23,4 +27,5 @@
 
 - Локальный запуск и деплой: `DEPLOY_LOCAL.md`
 - Инструкция по использованию: `USAGE.md`
-
+- Тестирование: `TESTING.md`
+- Техничка по Playwright: `TESTING_PLAYWRIGHT.md`

@@ -32,6 +32,20 @@ function applyPresetToState(state) {
   };
 }
 
+function resolveActivePositionWindow(positionWindows, state) {
+  if (state.displayMode !== "position") return null;
+  const sameIndexAndShape = positionWindows.find((w) =>
+    w.positionIndex === state.positionIndex && (!state.cagedShapeFilter || w.shape === state.cagedShapeFilter)
+  );
+  if (sameIndexAndShape) return sameIndexAndShape;
+
+  if (state.cagedShapeFilter) {
+    return positionWindows.find((w) => w.shape === state.cagedShapeFilter) || null;
+  }
+
+  return getPositionWindowByIndex(state.fretCount, state.positionIndex);
+}
+
 function mapVoicingTemplatesToRoot({ chordId, rootPc, tuning, fretCount, positionWindows, shapeFilter }) {
   const templates = getChordShapeTemplates(chordId);
   const tuningPcs = tuning.map(noteToPitchClass);
@@ -102,11 +116,7 @@ function buildDerived(state) {
   const fretboard = computeFretboardNotes({ tuning: state.tuning, fretCount });
   const positionWindows = getPositionWindows(fretCount);
 
-  const activePositionWindow = state.displayMode === "position"
-    ? (positionWindows.find((w) =>
-      w.positionIndex === state.positionIndex && (!state.cagedShapeFilter || w.shape === state.cagedShapeFilter)
-    ) || getPositionWindowByIndex(fretCount, state.positionIndex))
-    : null;
+  const activePositionWindow = resolveActivePositionWindow(positionWindows, state);
 
   let selection;
   let selectionDef;
@@ -158,9 +168,7 @@ function buildDerived(state) {
 
   const renderNotes = annotated.map((note) => ({
     ...note,
-    show: state.harmonyMode === "chord"
-      ? (selectedChordVoicing ? Boolean(voicingToneSet?.has(`${note.string}:${note.fret}`)) : false)
-      : true,
+    show: note.inSelection,
     showLabel: state.showNoteLabels && note.inSelection,
     isVoicingTone: voicingToneSet ? voicingToneSet.has(`${note.string}:${note.fret}`) : true,
   }));
@@ -213,6 +221,15 @@ function renderApp() {
   const maxPosition = Math.max(derived.positionWindows.length, 1);
   if (state.positionIndex > maxPosition) {
     store.setState({ positionIndex: maxPosition });
+    return;
+  }
+
+  if (
+    state.displayMode === "position" &&
+    derived.activePositionWindow &&
+    state.positionIndex !== derived.activePositionWindow.positionIndex
+  ) {
+    store.setState({ positionIndex: derived.activePositionWindow.positionIndex });
     return;
   }
 
@@ -269,7 +286,12 @@ function handleControlAction(action) {
       return;
     }
     if (name === "selectedPresetTuningId") {
-      store.setState({ selectedPresetTuningId: String(value) });
+      const nextPresetId = String(value);
+      if (nextPresetId === "custom") {
+        store.setState({ selectedPresetTuningId: "custom" });
+        return;
+      }
+      store.setState(applyPresetToState({ ...state, selectedPresetTuningId: nextPresetId }));
       return;
     }
     if (name === "harmonyMode") {

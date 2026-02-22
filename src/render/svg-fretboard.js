@@ -44,8 +44,9 @@ function centerXForFret(geometry, fret) {
   if (fret === 0) {
     return (geometry.nutX - 26 + geometry.nutX) / 2;
   }
-  const left = geometry.fretXs[fret];
-  const right = geometry.fretXs[fret + 1] ?? (geometry.fretXs[fret] + 28);
+  // Fret N sits between the previous divider (nut/fret N-1) and fret wire N.
+  const left = geometry.fretXs[fret - 1];
+  const right = geometry.fretXs[fret] ?? (geometry.fretXs[fret - 1] + 28);
   return (left + right) / 2;
 }
 
@@ -92,6 +93,9 @@ export function renderFretboard(svg, model) {
     }));
   }
 
+  const yForStringIndex = (stringIndex) => geometry.stringYs[5 - stringIndex];
+  const yForStringNumber = (stringNumber) => geometry.stringYs[stringNumber - 1];
+
   geometry.stringYs.forEach((y, idx) => {
     root.append(createSvgEl("line", {
       x1: geometry.nutX - 24,
@@ -99,7 +103,8 @@ export function renderFretboard(svg, model) {
       y1: y,
       y2: y,
       stroke: "var(--string)",
-      "stroke-width": 1.1 + (5 - idx) * 0.45,
+      // Thicker bass strings at the bottom (string 6).
+      "stroke-width": 1.1 + idx * 0.45,
       "stroke-linecap": "round",
     }));
   });
@@ -164,7 +169,7 @@ export function renderFretboard(svg, model) {
     if (opacity <= 0) continue;
 
     const cx = centerXForFret(geometry, note.fret);
-    const cy = geometry.stringYs[note.stringIndex];
+    const cy = yForStringIndex(note.stringIndex);
     const radius = note.interval === 0 ? 13 : 10.2;
 
     notesLayer.append(createSvgEl("circle", {
@@ -185,7 +190,10 @@ export function renderFretboard(svg, model) {
         "text-anchor": "middle",
         "font-size": note.interval === 0 ? "11" : "10",
         "font-weight": note.interval === 0 ? "700" : "600",
-        fill: "#1a140f",
+        fill: "rgba(255,255,255,0.98)",
+        stroke: "rgba(24,18,12,0.55)",
+        "stroke-width": "0.7",
+        "paint-order": "stroke",
         opacity,
       });
       noteLabel.textContent = label;
@@ -195,7 +203,7 @@ export function renderFretboard(svg, model) {
 
   if (voicingMuteStrings.size > 0) {
     for (const stringNumber of voicingMuteStrings) {
-      const y = geometry.stringYs[6 - stringNumber];
+      const y = yForStringNumber(stringNumber);
       const muteLabel = createSvgEl("text", {
         x: geometry.nutX - 34,
         y: y + 4,

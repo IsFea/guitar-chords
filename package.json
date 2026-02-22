@@ -1,0 +1,15 @@
+{
+  "name": "guitar",
+  "version": "1.0.0",
+  "description": "Веб-страница для визуализации грифа гитары: - стандартный и альтернативные строи (Open / Drop / custom), - подсветка гармоний (пентатоника, диатонические лады, блюзовые, базовые джазовые), - режимы отображения по позициям, - режим аккордов (готовые аппликатуры/voicings), - сохранение настроек в `localStorage`.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "playwright": "^1.58.2"
+  }
+}
