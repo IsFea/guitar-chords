@@ -16,12 +16,22 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 
 try {
+  const pageErrors = [];
+  page.on("pageerror", (err) => pageErrors.push(String(err)));
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15000 });
   await page.waitForSelector("#fretboard-svg");
   await page.waitForSelector("#controls-form");
+  await page.waitForSelector('button[data-action="play-scale-preview"]');
 
   const initialSummary = await page.locator("#selection-summary").innerText();
   assert(initialSummary.includes("Строй: E A D G B E"), "Initial tuning summary mismatch");
+  const scaleButtonEnabled = await page.evaluate(() => {
+    const btn = document.querySelector('button[data-action="play-scale-preview"]');
+    return Boolean(btn && !btn.disabled);
+  });
+  if (scaleButtonEnabled) {
+    await page.click('button[data-action="play-scale-preview"]');
+  }
 
   await page.selectOption("#selectedPresetTuningId", "drop-d");
   await page.waitForTimeout(200);
@@ -37,6 +47,16 @@ try {
 
   await page.selectOption("#harmonyMode", "chord");
   await page.waitForSelector('[data-section="chord"]:not([hidden])');
+  await page.waitForSelector('button[data-action="play-chord-strum"]');
+  const audioButtonsEnabled = await page.evaluate(() => {
+    const a = document.querySelector('button[data-action="play-chord-strum"]');
+    const b = document.querySelector('button[data-action="play-chord-arpeggio"]');
+    return Boolean(a && b && !a.disabled && !b.disabled);
+  });
+  if (audioButtonsEnabled) {
+    await page.click('button[data-action="play-chord-strum"]');
+    await page.click('button[data-action="play-chord-arpeggio"]');
+  }
   await page.selectOption("#chordId", "dim");
   await page.waitForTimeout(250);
   const dimEmptyVisible = await page.locator("#empty-state").isVisible();
@@ -57,6 +77,7 @@ try {
   });
   assert(labelAttrs.length > 0, "No note labels found on fretboard");
   assert(labelAttrs.every((a) => a.fill && a.stroke), "Note labels are missing contrast attributes");
+  assert(pageErrors.length === 0, `Page errors after audio clicks: ${pageErrors.join(" | ")}`);
 
   console.log("REGRESSION_OK");
   console.log(JSON.stringify({
@@ -65,6 +86,8 @@ try {
     dimEmptyVisible,
     dimNoteDots,
     labelAttrs,
+    scaleButtonEnabled,
+    audioButtonsEnabled,
   }, null, 2));
 } catch (error) {
   console.error("REGRESSION_FAIL");

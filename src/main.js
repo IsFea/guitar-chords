@@ -5,6 +5,15 @@ import { getScaleById } from "./music/scales.js";
 import { getChordById, getChordShapeTemplates } from "./music/chords.js";
 import { noteToPitchClass, normalizeNoteName } from "./music/notes.js";
 import { getTuningPresetById } from "./music/tunings.js";
+import {
+  buildAudioNotesFromFallback,
+  buildAudioNotesFromVoicing,
+  buildAudioScaleNotes,
+  isAudioPreviewSupported,
+  playChordPreview,
+  playScalePreview,
+  stopAudioPreview,
+} from "./audio/chord-preview.js";
 import { buildFretGeometry, renderFretboard } from "./render/svg-fretboard.js";
 import { buildLegendEntries } from "./render/colors.js";
 import { loadState, saveState } from "./storage/local-storage.js";
@@ -175,6 +184,35 @@ function buildDerived(state) {
 
   const legendEntries = buildLegendEntries(selection.intervals, selection.degreeByInterval);
 
+  let chordAudioNotes = [];
+  let scaleAudioNotes = [];
+  const withWindowFlag = annotated.map((note) => ({
+    ...note,
+    _audioInWindow: activePositionWindow ? (note.fret >= activePositionWindow.startFret && note.fret <= activePositionWindow.endFret) : true,
+  }));
+
+  if (state.harmonyMode === "scale") {
+    scaleAudioNotes = buildAudioScaleNotes(withWindowFlag, state.tuning, {
+      inWindowOnly: Boolean(activePositionWindow),
+    });
+    if (!scaleAudioNotes.length) {
+      scaleAudioNotes = buildAudioScaleNotes(withWindowFlag, state.tuning, { inWindowOnly: false });
+    }
+  }
+
+  if (state.harmonyMode === "chord") {
+    if (selectedChordVoicing) {
+      chordAudioNotes = buildAudioNotesFromVoicing(selectedChordVoicing, state.tuning);
+    } else {
+      chordAudioNotes = buildAudioNotesFromFallback(withWindowFlag, state.tuning, {
+        inWindowOnly: Boolean(activePositionWindow),
+      });
+      if (!chordAudioNotes.length) {
+        chordAudioNotes = buildAudioNotesFromFallback(withWindowFlag, state.tuning, { inWindowOnly: false });
+      }
+    }
+  }
+
   return {
     fretCount,
     rootPc,
@@ -187,6 +225,11 @@ function buildDerived(state) {
     chordVoicings,
     selectedChordVoicing,
     legendEntries,
+    chordAudioNotes,
+    scaleAudioNotes,
+    canPlayChordPreview: state.harmonyMode === "chord" && chordAudioNotes.length > 0 && isAudioPreviewSupported(),
+    canPlayScalePreview: state.harmonyMode === "scale" && scaleAudioNotes.length > 0 && isAudioPreviewSupported(),
+    audioPreviewSupported: isAudioPreviewSupported(),
   };
 }
 
@@ -242,6 +285,9 @@ function renderApp() {
   renderControls(dom.controlsForm, state, {
     positionWindows: derived.positionWindows,
     chordVoicings: derived.chordVoicings,
+    canPlayChordPreview: derived.canPlayChordPreview,
+    canPlayScalePreview: derived.canPlayScalePreview,
+    audioPreviewSupported: derived.audioPreviewSupported,
   }, handleControlAction);
 
   dom.selectionSummary.textContent = getSummaryText(state, derived);
@@ -273,6 +319,9 @@ function handleControlAction(action) {
   const state = store.getState();
   if (action.type === "set-field") {
     const { name, value } = action;
+    if (name === "harmonyMode") {
+      stopAudioPreview();
+    }
     if (name === "positionIndex" || name === "fretCount") {
       store.setState({ [name]: Number(value) || DEFAULT_STATE[name] });
       return;
@@ -332,7 +381,30 @@ function handleControlAction(action) {
   }
 
   if (action.type === "reset-state") {
+    stopAudioPreview();
     store.reset();
+    return;
+  }
+
+  if (action.type === "play-chord-strum" || action.type === "play-chord-arpeggio") {
+    const nextState = store.getState();
+    const derived = buildDerived(nextState);
+    if (!derived.canPlayChordPreview) return;
+    playChordPreview(derived.chordAudioNotes, {
+      mode: action.type === "play-chord-arpeggio" ? "arpeggio" : "strum",
+    }).catch(() => {
+      // Keep UI silent on audio errors; browser support varies.
+    });
+    return;
+  }
+
+  if (action.type === "play-scale-preview") {
+    const nextState = store.getState();
+    const derived = buildDerived(nextState);
+    if (!derived.canPlayScalePreview) return;
+    playScalePreview(derived.scaleAudioNotes).catch(() => {
+      // Keep UI silent on audio errors; browser support varies.
+    });
     return;
   }
 

@@ -52,6 +52,9 @@ export function renderControls(container, state, derived, onAction) {
   const voicingOptions = derived.chordVoicings.map((v) =>
     `<option value="${v.id}"${selectedAttr(v.id, state.chordVoicingVariant)}>${v.label}</option>`
   ).join("");
+  const audioUnsupported = derived.audioPreviewSupported === false;
+  const canPlayChordPreview = Boolean(derived.canPlayChordPreview);
+  const canPlayScalePreview = Boolean(derived.canPlayScalePreview);
 
   container.innerHTML = `
     <div class="field-group">
@@ -81,6 +84,18 @@ export function renderControls(container, state, derived, onAction) {
         <label for="scaleId">Лад / гамма</label>
         <select id="scaleId" name="scaleId">${scaleOptions}</select>
       </div>
+      <div class="field-row">
+        <button type="button" data-action="play-scale-preview" ${canPlayScalePreview ? "" : "disabled"}>▶ Гамма</button>
+      </div>
+      <div class="helper-text">
+        ${
+          audioUnsupported
+            ? "Аудио-preview недоступен: браузер не поддерживает Web Audio API."
+            : (canPlayScalePreview
+              ? "Синтетический preview выбранной гаммы (по возрастанию)."
+              : "Нет данных для воспроизведения гаммы в текущем отображении.")
+        }
+      </div>
     </div>
 
     <div class="field-group" data-section="chord" ${state.harmonyMode !== "chord" ? "hidden" : ""}>
@@ -96,6 +111,19 @@ export function renderControls(container, state, derived, onAction) {
         </select>
       </div>
       <div class="helper-text">${derived.chordVoicings.length ? "Выберите готовый voicing в позиции." : "Для этого аккорда в выбранной позиции нет готовых voicing."}</div>
+      <div class="field-row inline-2">
+        <button type="button" data-action="play-chord-strum" ${canPlayChordPreview ? "" : "disabled"}>▶ Струм</button>
+        <button type="button" data-action="play-chord-arpeggio" ${canPlayChordPreview ? "" : "disabled"}>▶ Арпеджио</button>
+      </div>
+      <div class="helper-text">
+        ${
+          audioUnsupported
+            ? "Аудио-preview недоступен: браузер не поддерживает Web Audio API."
+            : (canPlayChordPreview
+              ? "Синтетический preview аккорда (ориентировочное звучание)."
+              : "Нет данных для воспроизведения (выберите другой аккорд/позицию/voicing).")
+        }
+      </div>
     </div>
 
     <div class="field-group">
